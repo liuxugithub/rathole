@@ -114,11 +114,7 @@ impl UdpTraffic {
     pub async fn read<T: AsyncRead + Unpin>(reader: &mut T, hdr_len: u8) -> Result<UdpTraffic> {
         let mut buf = Vec::new();
         buf.resize(hdr_len as usize, 0);
-        reader
-            .read_exact(&mut buf)
-            .await
-            .with_context(|| "Failed to read udp header")?;
-
+        reader.read_exact(&mut buf).await.with_context(|| "Failed to read udp header")?;
         let hdr: UdpHeader =
             bincode::deserialize(&buf).with_context(|| "Failed to deserialize UdpHeader")?;
 
@@ -178,11 +174,9 @@ lazy_static! {
 
 pub async fn read_hello<T: AsyncRead + AsyncWrite + Unpin>(conn: &mut T) -> Result<Hello> {
     let mut buf = vec![0u8; PACKET_LEN.hello];
-    conn.read_exact(&mut buf)
-        .await
-        .with_context(|| "Failed to read hello")?;
+    conn.read_exact(&mut buf).await.with_context(|| "Failed to read hello")?;
+    let h:Hello =  bincode::deserialize(&buf).with_context(|| "Failed to deserialize hello")?;
     let hello = bincode::deserialize(&buf).with_context(|| "Failed to deserialize hello")?;
-
     match hello {
         Hello::ControlChannelHello(v, _) => {
             if v != CURRENT_PROTO_VERSION {

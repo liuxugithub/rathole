@@ -166,7 +166,6 @@ impl<T: 'static + Transport> Server<T> {
                         }
                         Ok((conn, addr)) => {
                             backoff.reset();
-
                             // Do transport handshake with a timeout
                             match time::timeout(Duration::from_secs(HANDSHAKE_TIMEOUT), self.transport.handshake(conn)).await {
                                 Ok(conn) => {
@@ -177,7 +176,7 @@ impl<T: 'static + Transport> Server<T> {
                                             let server_config = self.config.clone();
                                             tokio::spawn(async move {
                                                 if let Err(err) = handle_connection(conn, services, control_channels, server_config).await {
-                                                    error!("{:#}", err);
+                                                    error!("连接处理异常:{:#}", err);
                                                 }
                                             }.instrument(info_span!("connection", %addr)));
                                         }, Err(e) => {
@@ -352,13 +351,11 @@ async fn do_data_channel_handshake<T: 'static + Transport>(
     nonce: Nonce,
 ) -> Result<()> {
     debug!("Try to handshake a data channel");
-
     // Validate
     let control_channels_guard = control_channels.read().await;
     match control_channels_guard.get2(&nonce) {
         Some(handle) => {
             T::hint(&conn, SocketOpts::from_server_cfg(&handle.service));
-
             // Send the data channel to the corresponding control channel
             handle
                 .data_ch_tx

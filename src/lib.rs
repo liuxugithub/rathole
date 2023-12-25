@@ -72,6 +72,7 @@ pub async fn run(args: Cli, shutdown_rx: broadcast::Receiver<bool>) -> Result<()
     let (shutdown_tx, _) = broadcast::channel(1);
     // (The join handle of the last instance, The service update channel sender)
     let mut last_instance: Option<(tokio::task::JoinHandle<_>, mpsc::Sender<ConfigChange>)> = None;
+    //配置文件更新指令
     while let Some(e) = cfg_watcher.event_rx.recv().await {
         match e {
             ConfigChange::General(config) => {
