@@ -176,6 +176,7 @@ async fn do_data_channel_handshake<T: Transport>(
     let mut conn: T::Stream = retry_notify(
         backoff,
         || async {
+            info!("connect success:{}",&args.remote_addr);
             args.connector
                 .connect(&args.remote_addr)
                 .await
@@ -227,7 +228,7 @@ async fn run_data_channel_for_tcp<T: Transport>(
     mut conn: T::Stream,
     local_addr: &str,
 ) -> Result<()> {
-    debug!("New data channel starts forwarding");
+    info!("New data channel starts forwarding");
 
     let mut local = TcpStream::connect(local_addr)
         .await

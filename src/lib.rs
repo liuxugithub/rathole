@@ -1,6 +1,6 @@
 mod cli;
 mod config;
-mod config_watcher;
+pub mod config_watcher;
 mod constants;
 mod helper;
 mod multi_map;

@@ -175,7 +175,6 @@ lazy_static! {
 pub async fn read_hello<T: AsyncRead + AsyncWrite + Unpin>(conn: &mut T) -> Result<Hello> {
     let mut buf = vec![0u8; PACKET_LEN.hello];
     conn.read_exact(&mut buf).await.with_context(|| "Failed to read hello")?;
-    let h:Hello =  bincode::deserialize(&buf).with_context(|| "Failed to deserialize hello")?;
     let hello = bincode::deserialize(&buf).with_context(|| "Failed to deserialize hello")?;
     match hello {
         Hello::ControlChannelHello(v, _) => {
@@ -197,7 +196,6 @@ pub async fn read_hello<T: AsyncRead + AsyncWrite + Unpin>(conn: &mut T) -> Resu
             }
         }
     }
-
     Ok(hello)
 }
 

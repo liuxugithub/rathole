@@ -72,7 +72,6 @@ pub async fn run_server(
             crate::helper::feature_not_compile("noise")
         }
     }
-
     Ok(())
 }
 
@@ -84,7 +83,6 @@ type ControlChannelMap<T> = MultiMap<ServiceDigest, Nonce, ControlChannelHandle<
 struct Server<T: Transport> {
     // `[server]` config
     config: Arc<ServerConfig>,
-
     // `[server.services]` config, indexed by ServiceDigest
     services: Arc<RwLock<HashMap<ServiceDigest, ServerServiceConfig>>>,
     // Collection of contorl channels
@@ -147,6 +145,7 @@ impl<T: 'static + Transport> Server<T> {
                 ret = self.transport.accept(&l) => {
                     match ret {
                         Err(err) => {
+                            error!("连接断开:{:?}",err);
                             // Detects whether it's an IO error
                             if let Some(err) = err.downcast_ref::<io::Error>() {
                                 // If it is an IO error, then it's possibly an
@@ -355,6 +354,7 @@ async fn do_data_channel_handshake<T: 'static + Transport>(
     let control_channels_guard = control_channels.read().await;
     match control_channels_guard.get2(&nonce) {
         Some(handle) => {
+            info!("data sending:{:?}",conn);
             T::hint(&conn, SocketOpts::from_server_cfg(&handle.service));
             // Send the data channel to the corresponding control channel
             handle
@@ -399,7 +399,7 @@ where
         let (data_ch_req_tx, data_ch_req_rx) = mpsc::unbounded_channel();
 
         // Cache some data channels for later use
-        let pool_size = match service.service_type {
+        /*let pool_size = match service.service_type {
             ServiceType::Tcp => TCP_POOL_SIZE,
             ServiceType::Udp => UDP_POOL_SIZE,
         };
@@ -408,7 +408,7 @@ where
             if let Err(e) = data_ch_req_tx.send(true) {
                 error!("Failed to request data channel {}", e);
             };
-        }
+        }*/
 
         let shutdown_rx_clone = shutdown_tx.subscribe();
         let bind_addr = service.bind_addr.clone();
@@ -498,7 +498,6 @@ impl<T: Transport> ControlChannel<T> {
     async fn run(mut self) -> Result<()> {
         let create_ch_cmd = bincode::serialize(&ControlChannelCmd::CreateDataChannel).unwrap();
         let heartbeat = bincode::serialize(&ControlChannelCmd::HeartBeat).unwrap();
-
         // Wait for data channel requests and the shutdown signal
         loop {
             tokio::select! {
@@ -539,8 +538,8 @@ fn tcp_listen_and_send(
     data_ch_req_tx: mpsc::UnboundedSender<bool>,
     mut shutdown_rx: broadcast::Receiver<bool>,
 ) -> mpsc::Receiver<TcpStream> {
-    let (tx, rx) = mpsc::channel(CHAN_SIZE);
 
+    let (tx, rx) = mpsc::channel(CHAN_SIZE);
     tokio::spawn(async move {
         let l = retry_notify_with_deadline(listen_backoff(),  || async {
             Ok(TcpListener::bind(&addr).await?)
@@ -557,7 +556,7 @@ fn tcp_listen_and_send(
             }
         };
 
-        info!("Listening at {}", &addr);
+        info!("Data channel Listening at {}", &addr);
 
         // Retry at least every 1s
         let mut backoff = ExponentialBackoff {
@@ -605,13 +604,10 @@ fn tcp_listen_and_send(
                 }
             }
         }
-
         info!("TCPListener shutdown");
     }.instrument(Span::current()));
-
     rx
 }
-
 #[instrument(skip_all)]
 async fn run_tcp_connection_pool<T: Transport>(
     bind_addr: String,
@@ -621,11 +617,13 @@ async fn run_tcp_connection_pool<T: Transport>(
 ) -> Result<()> {
     let mut visitor_rx = tcp_listen_and_send(bind_addr, data_ch_req_tx.clone(), shutdown_rx);
     let cmd = bincode::serialize(&DataChannelCmd::StartForwardTcp).unwrap();
-
+    info!("run tcp connection pool");
+    //暴露的端口收到数据包
     'pool: while let Some(mut visitor) = visitor_rx.recv().await {
         loop {
             if let Some(mut ch) = data_ch_rx.recv().await {
                 if ch.write_all(&cmd).await.is_ok() {
+                    info!("tcp sending...:{:?}",visitor.readable().await.unwrap());
                     tokio::spawn(async move {
                         let _ = copy_bidirectional(&mut ch, &mut visitor).await;
                     });
@@ -641,7 +639,6 @@ async fn run_tcp_connection_pool<T: Transport>(
             }
         }
     }
-
     info!("Shutdown");
     Ok(())
 }
@@ -700,5 +697,10 @@ async fn run_udp_connection_pool<T: Transport>(
 
     debug!("UDP pool dropped");
 
+    Ok(())
+}
+
+
+async fn handSsl()->Result<()>{
     Ok(())
 }

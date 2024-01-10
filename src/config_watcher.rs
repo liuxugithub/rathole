@@ -164,7 +164,6 @@ async fn config_watcher(
 
     watcher.watch(parent_path, RecursiveMode::NonRecursive)?;
     info!("Start watching the config");
-
     loop {
         tokio::select! {
           e = fevent_rx.recv() => {
